@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#08080c">
+<meta name="description" content="极简记账 · 暗黑液态玻璃">
+<link rel="manifest" href="manifest.json">
+<title>记账</title>
+<style>
+:root {
+  --bg: #08080c;
+  --glass: rgba(255,255,255,0.05);
+  --glass-strong: rgba(255,255,255,0.08);
+  --glass-border: rgba(255,255,255,0.08);
+  --glass-border-strong: rgba(255,255,255,0.15);
+  --text: #f0f0f5;
+  --text-secondary: #8e8e93;
+  --text-tertiary: #5c5c63;
+  --accent: #7c8fff;
+  --accent-soft: rgba(124,143,255,0.15);
+  --income: #34c759;
+  --income-bg: rgba(52,199,89,0.15);
+  --expense: #ff453a;
+  --expense-bg: rgba(255,69,58,0.15);
+  --radius-sm: 12px;
+  --radius: 20px;
+  --radius-lg: 28px;
+  --radius-xl: 36px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.45);
+  --shadow: 0 4px 24px rgba(0,0,0,0.55);
+  --shadow-lg: 0 12px 48px rgba(0,0,0,0.65);
+  --font: -apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Helvetica Neue','PingFang SC',sans-serif;
+  --transition: 0.35s cubic-bezier(0.16,1,0.3,1);
+  --bounce: 0.5s cubic-bezier(0.16,1,0.3,1);
+  --jelly: 0.35s cubic-bezier(0.34,1.56,0.64,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-family:var(--font);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent;font-size:16px;background:#08080c}
+body{
+  min-height:100dvh;background:var(--bg);color:var(--text);
+  overflow-x:hidden;-webkit-user-select:none;user-select:none;
+  display:flex;justify-content:center;
+}
+/* ── Liquid Glass Background ── */
+body::before{
+  content:'';position:fixed;inset:0;z-index:-1;
+  background:
+    radial-gradient(ellipse 75% 55% at 18% 22%, rgba(100,140,255,0.22) 0%, transparent 58%),
+    radial-gradient(ellipse 65% 50% at 78% 18%, rgba(155,110,225,0.18) 0%, transparent 58%),
+    radial-gradient(ellipse 70% 50% at 38% 88%, rgba(80,160,225,0.16) 0%, transparent 58%),
+    radial-gradient(ellipse 55% 48% at 88% 72%, rgba(130,170,215,0.15) 0%, transparent 58%),
+    radial-gradient(ellipse 45% 40% at 55% 50%, rgba(150,140,210,0.10) 0%, transparent 65%),
+    linear-gradient(180deg, #0e0e16 0%, #09090e 50%, #0b0b14 100%);
+}
+#app{width:100%;max-width:480px;min-height:100dvh;position:relative;padding-bottom:100px}
+
+/* ── Opening Light Sweep ── */
+#app.ready .balance-card::before {
+  content:'';position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.04) 42%, rgba(255,255,255,0.14) 50%, rgba(255,255,255,0.04) 58%, transparent 80%);
+  animation: lightSweep 1.3s ease-out 0.15s both;
+}
+@keyframes lightSweep {
+  from { transform: translateX(-120%); }
+  to   { transform: translateX(130%); }
+}
+
+/* ── Header ── */
+.header{position:sticky;top:0;z-index:50;padding:12px 20px 8px;display:flex;align-items:center;justify-content:space-between}
+.header-bg{
+  position:absolute;inset:0;
+  background:rgba(8,8,12,0.75);backdrop-filter:blur(30px) saturate(180%);
+  -webkit-backdrop-filter:blur(30px) saturate(180%);
+  border-bottom:1px solid rgba(255,255,255,0.07);
+}
+.header-content{position:relative;display:flex;align-items:center;justify-content:space-between;width:100%;z-index:1}
+.nav-btn{
+  width:40px;height:40px;border-radius:50%;border:none;
+  background:rgba(255,255,255,0.06);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  font-size:18px;color:var(--text);
+  border:1px solid rgba(255,255,255,0.08);
+  transition:transform var(--jelly),background 0.2s,box-shadow 0.2s;
+}
+.nav-btn:active{transform:scale(0.82);background:rgba(255,255,255,0.14);box-shadow:0 0 0 4px rgba(255,255,255,0.04)}
+.header-title{font-size:18px;font-weight:600;letter-spacing:-0.01em;display:flex;align-items:center;gap:6px}
+.header-sub{font-size:13px;color:var(--text-secondary);font-weight:400}
+
+/* ── Balance Card ── */
+.balance-card{
+  margin:8px 16px 0;padding:20px 22px;border-radius:var(--radius-lg);
+  background:rgba(255,255,255,0.06);backdrop-filter:blur(44px) saturate(220%);
+  -webkit-backdrop-filter:blur(44px) saturate(220%);
+  border:1px solid rgba(255,255,255,0.08);
+  border-top:1px solid rgba(255,255,255,0.16);
+  box-shadow:0 8px 40px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.06),inset 0 -1px 0 rgba(0,0,0,0.3);
+  position:relative;overflow:hidden;
+}
+.balance-card::after{
+  content:'';position:absolute;top:-45%;left:-45%;width:90%;height:170%;
+  background:radial-gradient(ellipse,rgba(255,255,255,0.07),transparent 60%);
+  pointer-events:none;
+}
+.balance-label{font-size:12px;color:var(--text-secondary);font-weight:500;letter-spacing:0.04em;text-transform:uppercase;position:relative;z-index:1}
+.balance-amount{font-size:40px;font-weight:700;letter-spacing:-0.03em;margin-top:2px;line-height:1.1;position:relative;z-index:1}
+.balance-row{display:flex;gap:16px;margin-top:14px;position:relative;z-index:1}
+.balance-item{flex:1;padding:10px 12px;border-radius:var(--radius-sm);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06)}
+.balance-item .bi-label{font-size:10px;color:var(--text-tertiary);font-weight:500;letter-spacing:0.05em}
+.balance-item .bi-value{font-size:18px;font-weight:600;margin-top:2px}
+.bi-income{color:var(--income)}.bi-expense{color:var(--expense)}
+
+/* ── Segmented Control ── */
+.segmented{margin:16px 16px 0;display:flex;background:rgba(255,255,255,0.05);border-radius:var(--radius-sm);padding:3px;position:relative}
+.segmented-bg{
+  position:absolute;top:3px;height:calc(100% - 6px);background:rgba(255,255,255,0.14);
+  border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.35);
+  transition:left var(--jelly),width var(--jelly);z-index:0;
+}
+.seg-btn{flex:1;padding:9px 0;border:none;background:none;font-size:15px;font-weight:500;color:var(--text-secondary);cursor:pointer;position:relative;z-index:1;border-radius:10px;transition:color 0.25s,transform var(--jelly);font-family:var(--font)}
+.seg-btn:active{transform:scale(0.92)}
+.seg-btn.active{color:var(--text);font-weight:600}
+
+/* ── Content ── */
+.content{margin:14px 16px 0}
+.content-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.content-date{font-size:14px;font-weight:500;color:var(--text-secondary)}
+
+/* ── Transaction List ── */
+.txn-list{display:flex;flex-direction:column;gap:8px}
+.txn-item{
+  display:flex;align-items:center;gap:12px;padding:14px 16px;
+  border-radius:var(--radius);
+  background:rgba(255,255,255,0.045);
+  backdrop-filter:blur(28px) saturate(200%);-webkit-backdrop-filter:blur(28px) saturate(200%);
+  border:1px solid rgba(255,255,255,0.07);
+  border-top:1px solid rgba(255,255,255,0.12);
+  box-shadow:0 2px 8px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.04);
+  transition:transform var(--jelly),box-shadow 0.25s,border-color 0.25s;cursor:pointer;
+}
+.txn-item:active{
+  transform:scale(0.955);
+  border-color:rgba(255,255,255,0.18);
+  border-top-color:rgba(255,255,255,0.24);
+  box-shadow:0 1px 4px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.10);
+}
+.txn-icon{width:42px;height:42px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.txn-icon.income{background:var(--income-bg)}.txn-icon.expense{background:var(--expense-bg)}
+.txn-info{flex:1;min-width:0}
+.txn-cat{font-size:15px;font-weight:500;color:var(--text)}
+.txn-note{font-size:12px;color:var(--text-tertiary);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.txn-amount{font-size:17px;font-weight:600;letter-spacing:-0.02em;white-space:nowrap}
+.txn-amount.income{color:var(--income)}.txn-amount.expense{color:var(--expense)}
+
+/* ── Month Calendar ── */
+.calendar{
+  background:rgba(255,255,255,0.06);backdrop-filter:blur(36px);-webkit-backdrop-filter:blur(36px);
+  border-radius:var(--radius-lg);
+  border:1px solid rgba(255,255,255,0.08);
+  border-top:1px solid rgba(255,255,255,0.14);
+  box-shadow:0 4px 24px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.04);
+  overflow:hidden;margin-bottom:12px;
+}
+.calendar-header{display:grid;grid-template-columns:repeat(7,1fr);padding:12px 10px 6px;text-align:center;font-size:11px;font-weight:500;color:var(--text-tertiary)}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);padding:0 10px 10px;gap:2px}
+.calendar-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:50%;font-size:14px;font-weight:500;position:relative;cursor:pointer;transition:transform var(--jelly),background 0.2s}
+.calendar-cell:hover{background:rgba(255,255,255,0.06)}
+.calendar-cell:active{transform:scale(0.78);background:rgba(255,255,255,0.10)}
+.calendar-cell.today{font-weight:700;color:var(--accent)}
+.calendar-cell.selected{background:var(--accent);color:#fff}
+.calendar-cell.selected:active{transform:scale(0.85)}
+.calendar-cell.other-month{color:var(--text-tertiary)}
+.calendar-dot{width:4px;height:4px;border-radius:50%;background:var(--accent);position:absolute;bottom:6px}
+.calendar-cell.selected .calendar-dot{background:rgba(255,255,255,0.8)}
+
+/* ── Month Summary ── */
+.month-summary-list{display:flex;flex-direction:column;gap:6px}
+.month-summary-item{
+  display:flex;align-items:center;justify-content:space-between;padding:10px 14px;
+  border-radius:var(--radius-sm);
+  background:rgba(255,255,255,0.045);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border:1px solid rgba(255,255,255,0.07);border-top:1px solid rgba(255,255,255,0.12);
+  cursor:pointer;transition:transform var(--jelly),box-shadow 0.2s;
+  box-shadow:0 1px 4px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.03);
+}
+.month-summary-item:active{transform:scale(0.955);box-shadow:0 1px 2px rgba(0,0,0,0.4)}
+
+/* ── Year View ── */
+.year-list{display:flex;flex-direction:column;gap:8px}
+.year-month-card{
+  padding:16px 18px;border-radius:var(--radius);
+  background:rgba(255,255,255,0.045);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border:1px solid rgba(255,255,255,0.07);border-top:1px solid rgba(255,255,255,0.12);
+  box-shadow:0 2px 8px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.03);
+  cursor:pointer;transition:transform var(--jelly),box-shadow 0.2s;
+}
+.year-month-card:active{transform:scale(0.96)}
+.year-month-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.year-month-name{font-size:15px;font-weight:600}
+.year-month-net{font-size:15px;font-weight:600}
+.year-bars{display:flex;gap:6px;align-items:flex-end;height:8px}
+.year-bar{height:100%;border-radius:4px;transition:width var(--bounce)}
+.year-bar.income-bar{background:var(--income)}.year-bar.expense-bar{background:var(--expense)}
+.year-month-detail{display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--text-tertiary)}
+
+/* ── Empty State ── */
+.empty-state{text-align:center;padding:48px 20px;color:var(--text-tertiary)}
+.empty-icon{font-size:56px;margin-bottom:12px;opacity:0.7}
+.empty-title{font-size:17px;font-weight:500;color:var(--text-secondary);margin-bottom:4px}
+.empty-sub{font-size:13px}
+
+/* ── FAB ── */
+.fab{
+  position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+  width:56px;height:56px;border-radius:50%;
+  background:var(--accent);color:#fff;border:none;
+  font-size:28px;cursor:pointer;z-index:40;
+  box-shadow:0 8px 36px rgba(124,143,255,0.45);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform var(--jelly),box-shadow 0.25s;
+}
+.fab:active{transform:translateX(-50%) scale(0.80);box-shadow:0 2px 12px rgba(124,143,255,0.50)}
+
+/* ── Overlay ── */
+.overlay{
+  position:fixed;inset:0;z-index:80;
+  background:rgba(0,0,0,0.55);backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  opacity:0;pointer-events:none;transition:opacity 0.35s;
+}
+.overlay.open{opacity:1;pointer-events:auto}
+
+/* ── Bottom Sheet ── */
+.sheet{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);
+  width:100%;max-width:480px;z-index:90;
+  background:rgba(18,18,26,0.94);
+  backdrop-filter:blur(44px) saturate(220%);
+  -webkit-backdrop-filter:blur(44px) saturate(220%);
+  border-radius:var(--radius-xl) var(--radius-xl) 0 0;
+  border:1px solid rgba(255,255,255,0.10);
+  border-top:1px solid rgba(255,255,255,0.16);
+  box-shadow:0 -8px 50px rgba(0,0,0,0.65);
+  transition:transform var(--bounce);
+  max-height:85dvh;overflow-y:auto;
+  padding:0 0 env(safe-area-inset-bottom,20px);
+}
+.sheet.open{transform:translateX(-50%) translateY(0)}
+.sheet-handle{width:36px;height:5px;border-radius:3px;background:rgba(255,255,255,0.20);margin:12px auto 8px}
+.sheet-content{padding:8px 20px 20px}
+
+/* ── Sheet Form ── */
+.amount-input-wrap{text-align:center;margin:8px 0 16px}
+.amount-prefix{font-size:22px;color:var(--text-secondary);font-weight:500}
+.amount-input{font-size:48px;font-weight:700;letter-spacing:-0.03em;border:none;background:none;text-align:center;width:100%;font-family:var(--font);color:var(--text);outline:none;caret-color:var(--accent)}
+.amount-input::placeholder{color:var(--text-tertiary)}
+.type-toggle{display:flex;background:rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:3px;margin-bottom:18px;position:relative}
+.type-toggle-bg{position:absolute;top:3px;height:calc(100% - 6px);background:rgba(255,255,255,0.14);border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.35);transition:left var(--jelly),width var(--jelly);z-index:0}
+.type-btn{flex:1;padding:10px 0;border:none;background:none;font-size:15px;font-weight:500;cursor:pointer;position:relative;z-index:1;font-family:var(--font);border-radius:10px;transition:color 0.25s,transform var(--jelly);color:var(--text-secondary)}
+.type-btn:active{transform:scale(0.92)}
+.type-btn.active-expense{color:var(--expense)}.type-btn.active-income{color:var(--income)}
+.cat-label{font-size:12px;color:var(--text-secondary);font-weight:500;margin-bottom:8px;letter-spacing:0.03em}
+.cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.cat-chip{
+  padding:10px 6px;border-radius:var(--radius-sm);
+  border:1px solid rgba(255,255,255,0.07);
+  background:rgba(255,255,255,0.04);text-align:center;cursor:pointer;
+  font-size:12px;font-weight:500;font-family:var(--font);color:var(--text-secondary);
+  transition:transform var(--jelly),border-color 0.2s,background 0.2s,color 0.2s;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+}
+.cat-chip .cat-emoji{font-size:22px}
+.cat-chip.selected{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);border-top-color:var(--accent)}
+.cat-chip:active{transform:scale(0.86)}
+.form-row{display:flex;gap:10px;margin-bottom:12px}
+.form-field{flex:1}
+.form-label{font-size:11px;color:var(--text-tertiary);font-weight:500;margin-bottom:4px;letter-spacing:0.03em}
+.form-input{width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);font-size:15px;font-family:var(--font);color:var(--text);outline:none;transition:border-color 0.2s}
+.form-input:focus{border-color:var(--accent)}
+.form-input::placeholder{color:var(--text-tertiary)}
+input[type="date"].form-input{color-scheme:dark}
+.save-btn{width:100%;padding:15px;border-radius:var(--radius);border:none;background:var(--accent);color:#fff;font-size:17px;font-weight:600;cursor:pointer;font-family:var(--font);margin-top:8px;transition:transform var(--jelly),opacity 0.2s,box-shadow 0.2s;box-shadow:0 4px 24px rgba(124,143,255,0.40)}
+.save-btn:active{transform:scale(0.93);opacity:0.85;box-shadow:0 2px 12px rgba(124,143,255,0.50)}
+
+/* ── Delete button ── */
+.txn-delete{width:28px;height:28px;border-radius:50%;border:none;background:rgba(255,255,255,0.06);color:#8e8e93;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0;transition:transform var(--jelly),background 0.2s,color 0.2s;opacity:0.55}
+.txn-item:hover .txn-delete,.txn-item:active .txn-delete{opacity:1;background:rgba(255,255,255,0.10)}
+.txn-delete:active{transform:scale(0.80);background:var(--expense-bg);color:var(--expense)}
+
+/* ── Toast ── */
+.toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:rgba(40,40,48,0.94);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:500;z-index:100;pointer-events:none;opacity:0;transition:opacity 0.3s;border:1px solid rgba(255,255,255,0.10)}
+.toast.show{opacity:1}
+
+/* ── Responsive ── */
+@media(min-width:481px){#app{border-left:1px solid rgba(255,255,255,0.05);border-right:1px solid rgba(255,255,255,0.05)}}
+
+/* ── Reduced Motion ── */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-bg"></div>
+    <div class="header-content">
+      <button class="nav-btn" id="navPrev" aria-label="上一步">◂</button>
+      <div class="header-title" id="headerTitle"></div>
+      <button class="nav-btn" id="navNext" aria-label="下一步">▸</button>
+    </div>
+  </div>
+  <div class="balance-card" id="balanceCard"></div>
+  <div class="segmented" id="segmented">
+    <div class="segmented-bg"></div>
+    <button class="seg-btn active" data-view="day">日</button>
+    <button class="seg-btn" data-view="month">月</button>
+    <button class="seg-btn" data-view="year">年</button>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+<button class="fab" id="fab" aria-label="添加记录">+</button>
+<div class="overlay" id="overlay"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-content" id="sheetContent"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════
+   极简记账 · 暗黑液态玻璃 PWA
+   ═══════════════════════════════════════ */
+
+// ── Constants ──
+const CATEGORIES = {
+  expense: [
+    {key:'food',emoji:'🍜',name:'伙食费'},
+    {key:'entertain',emoji:'🎬',name:'娱乐'},
+    {key:'study',emoji:'📚',name:'学习'},
+    {key:'other',emoji:'📌',name:'其他'},
+  ],
+  income: [
+    {key:'salary',emoji:'💰',name:'工资'},
+    {key:'side',emoji:'💼',name:'兼职'},
+    {key:'redpack',emoji:'🧧',name:'红包'},
+    {key:'other',emoji:'📌',name:'其他'},
+  ]
+};
+
+// ── State ──
+const state = {
+  view: 'day',
+  currentDate: new Date(),
+  transactions: [],
+  editingId: null,
+  sheetOpen: false,
+};
+
+// ── Helpers ──
+const fmt = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+};
+const parseDate = (s) => { const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d); };
+const fmtCurrency = (v) => { const n=Number(v);if(isNaN(n))return '¥0.00';const neg=n<0;const a=Math.abs(n);const parts=a.toFixed(2).split('.');parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');return (neg?'-':'')+'¥'+parts.join('.'); };
+const fmtCurrencyShort = (v) => { const n=Number(v);if(isNaN(n))return '¥0';const neg=n<0;const a=Math.abs(n);if(a>=10000)return (neg?'-':'')+'¥'+(a/10000).toFixed(1)+'万';const s=a.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');return (neg?'-':'')+'¥'+s; };
+const genId = () => Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const WEEKDAYS = ['日','一','二','三','四','五','六'];
+const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+// ── Data Store ──
+const Store = {
+  load(){
+    try{const d=localStorage.getItem('jz_v3');state.transactions=d?JSON.parse(d):[]}
+    catch{state.transactions=[]}
+  },
+  save(){localStorage.setItem('jz_v3',JSON.stringify(state.transactions))},
+  add(t){state.transactions.push(t);this.save()},
+  update(id,data){const i=state.transactions.findIndex(t=>t.id===id);if(i>=0){state.transactions[i]={...state.transactions[i],...data};this.save()}},
+  delete(id){state.transactions=state.transactions.filter(t=>t.id!==id);this.save()},
+  getByDay(dateStr){return state.transactions.filter(t=>t.date===dateStr).sort((a,b)=>b.createdAt-a.createdAt)},
+  getByMonth(y,m){return state.transactions.filter(t=>{const d=parseDate(t.date);return d.getFullYear()===y&&d.getMonth()===m})},
+  getByYear(y){return state.transactions.filter(t=>parseDate(t.date).getFullYear()===y)},
+  hasDataOnDay(dateStr){return state.transactions.some(t=>t.date===dateStr)},
+  dailyTotal(dateStr){return this.getByDay(dateStr).reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0)},
+  monthlyStats(y,m){
+    const txns=this.getByMonth(y,m);
+    let inc=0,exp=0;txns.forEach(t=>{if(t.type==='income')inc+=t.amount;else exp+=t.amount});
+    return {income:inc,expense:exp,net:inc-exp,count:txns.length};
+  },
+  yearlyStats(y){
+    const txns=this.getByYear(y);
+    let inc=0,exp=0;txns.forEach(t=>{if(t.type==='income')inc+=t.amount;else exp+=t.amount});
+    return {income:inc,expense:exp,net:inc-exp,count:txns.length};
+  },
+  daysInMonth(y,m){
+    const days=[];
+    const total=new Date(y,m+1,0).getDate();
+    for(let d=1;d<=total;d++){const ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');const txs=this.getByDay(ds);if(txs.length>0)days.push({date:ds,day:d,txns:txs,total:txs.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0)})}
+    return days;
+  }
+};
+
+// ── UI ──
+const $=(sel)=>document.querySelector(sel);
+const $$=(sel)=>document.querySelectorAll(sel);
+
+const UI = {
+  init(){
+    Store.load();
+    this.render();
+    this.bindEvents();
+    // Opening animation
+    const app=$('#app');
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        app.classList.add('ready');
+      });
+    });
+  },
+
+  render(){
+    this.renderHeader();
+    this.renderBalance();
+    this.renderContent();
+    this.updateSegmented();
+  },
+
+  renderHeader(){
+    const d=state.currentDate;
+    const $t=$('#headerTitle');
+    if(state.view==='day'){
+      $t.innerHTML=d.getMonth()+1+'月'+d.getDate()+'日 <span class="header-sub">周'+WEEKDAYS[d.getDay()]+'</span>';
+    }else if(state.view==='month'){
+      $t.innerHTML=d.getFullYear()+'年<span class="header-sub">'+(d.getMonth()+1)+'月</span>';
+    }else{
+      $t.innerHTML=d.getFullYear()+'年';
+    }
+  },
+
+  renderBalance(){
+    const d=state.currentDate;
+    let stats;
+    if(state.view==='day'){stats=Store.monthlyStats(d.getFullYear(),d.getMonth())}
+    else if(state.view==='month'){stats=Store.monthlyStats(d.getFullYear(),d.getMonth())}
+    else{stats=Store.yearlyStats(d.getFullYear())}
+    $('#balanceCard').innerHTML=
+      '<div class="balance-label">'+(state.view==='year'?'本年':'本月')+'结余</div>'+
+      '<div class="balance-amount" style="color:'+(stats.net>=0?'var(--income)':'var(--expense)')+'">'+fmtCurrency(stats.net)+'</div>'+
+      '<div class="balance-row">'+
+        '<div class="balance-item"><div class="bi-label">收入</div><div class="bi-value bi-income">'+fmtCurrency(stats.income)+'</div></div>'+
+        '<div class="balance-item"><div class="bi-label">支出</div><div class="bi-value bi-expense">'+fmtCurrency(stats.expense)+'</div></div>'+
+      '</div>';
+  },
+
+  renderContent(){
+    if(state.view==='day')this.renderDayView();
+    else if(state.view==='month')this.renderMonthView();
+    else this.renderYearView();
+  },
+
+  renderDayView(){
+    const ds=fmt(state.currentDate);
+    const txns=Store.getByDay(ds);
+    const $c=$('#content');
+    if(txns.length===0){
+      $c.innerHTML='<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">暂无记录</div><div class="empty-sub">点击下方 + 添加一笔</div></div>';
+      return;
+    }
+    const dailyTotal=txns.reduce((s,t)=>s+(t.type==='income'?t.amount:-t.amount),0);
+    $c.innerHTML=
+      '<div class="content-header"><span class="content-date">共 '+txns.length+' 笔</span><span style="font-size:14px;font-weight:600;color:'+(dailyTotal>=0?'var(--income)':'var(--expense)')+'">'+fmtCurrency(dailyTotal)+'</span></div>'+
+      '<div class="txn-list">'+txns.map(t=>this.txnItemHTML(t)).join('')+'</div>';
+    $c.querySelectorAll('.txn-item').forEach(el=>{el.addEventListener('click',(e)=>{if(!e.target.closest('.txn-delete'))this.editTxn(el.dataset.id)})});
+    $c.querySelectorAll('.txn-delete').forEach(el=>{el.addEventListener('click',(e)=>{e.stopPropagation();this.deleteTxn(el.dataset.id)})});
+  },
+
+  txnItemHTML(t){
+    const cat=CATEGORIES[t.type].find(c=>c.key===t.category)||CATEGORIES[t.type][CATEGORIES[t.type].length-1];
+    const sign=t.type==='income'?'+':'-';
+    return '<div class="txn-item" data-id="'+t.id+'">'+
+      '<div class="txn-icon '+t.type+'">'+cat.emoji+'</div>'+
+      '<div class="txn-info"><div class="txn-cat">'+cat.name+'</div>'+(t.note?'<div class="txn-note">'+t.note+'</div>':'')+'</div>'+
+      '<div class="txn-amount '+t.type+'">'+sign+fmtCurrency(t.amount)+'</div>'+
+      '<button class="txn-delete" data-id="'+t.id+'">×</button>'+
+    '</div>';
+  },
+
+  renderMonthView(){
+    const d=state.currentDate;const y=d.getFullYear();const m=d.getMonth();
+    const daysInM=new Date(y,m+1,0).getDate();
+    const firstDay=new Date(y,m,1).getDay();
+    const prevMonthDays=new Date(y,m,0).getDate();
+    const today=fmt(new Date());
+    const selected=fmt(d);
+    let cells='';
+    for(let i=firstDay-1;i>=0;i--){const day=prevMonthDays-i;const ds=y+'-'+String(m).padStart(2,'0')+'-'+String(day).padStart(2,'0');const has=Store.hasDataOnDay(ds);cells+='<div class="calendar-cell other-month" data-date="'+ds+'">'+day+(has?'<div class="calendar-dot"></div>':'')+'</div>';}
+    for(let day=1;day<=daysInM;day++){const ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');const has=Store.hasDataOnDay(ds);const isToday=ds===today;const isSel=ds===selected;cells+='<div class="calendar-cell'+(isToday?' today':'')+(isSel?' selected':'')+'" data-date="'+ds+'">'+day+(has?'<div class="calendar-dot"></div>':'')+'</div>';}
+    const remaining=42-(firstDay+daysInM);
+    for(let day=1;day<=remaining;day++){const ds=y+'-'+String(m+2).padStart(2,'0')+'-'+String(day).padStart(2,'0');cells+='<div class="calendar-cell other-month" data-date="'+ds+'">'+day+'</div>';}
+
+    const activeDays=Store.daysInMonth(y,m);
+    let summaryHTML='';
+    if(activeDays.length===0){summaryHTML='<div class="empty-state" style="padding:24px"><div class="empty-sub">本月暂无记录</div></div>';}
+    else{summaryHTML='<div class="month-summary-list">'+activeDays.reverse().slice(0,15).map(function(d){var s=d.total;return'<div class="month-summary-item" data-date="'+d.date+'"><span style="font-size:14px;font-weight:500">'+d.day+'日 周'+WEEKDAYS[parseDate(d.date).getDay()]+'</span><span style="font-size:15px;font-weight:600;color:'+(s>=0?'var(--income)':'var(--expense)')+'">'+fmtCurrency(s)+'</span></div>';}).join('')+'</div>';}
+
+    $('#content').innerHTML='<div class="calendar"><div class="calendar-header">'+WEEKDAYS.map(function(w){return'<span>'+w+'</span>';}).join('')+'</div><div class="calendar-grid">'+cells+'</div></div><div class="content-header"><span class="content-date">交易记录</span></div>'+summaryHTML;
+
+    $('#content').querySelectorAll('.calendar-cell').forEach(function(el){el.addEventListener('click',function(){var ds=el.dataset.date;if(ds){state.currentDate=parseDate(ds);state.view='day';UI.renderComplete();}});});
+    $('#content').querySelectorAll('.month-summary-item').forEach(function(el){el.addEventListener('click',function(){state.currentDate=parseDate(el.dataset.date);state.view='day';UI.renderComplete();});});
+  },
+
+  renderYearView(){
+    const y=state.currentDate.getFullYear();
+    const stats=Store.yearlyStats(y);
+    const maxVal=Math.max(stats.income,stats.expense,1);
+    let html='';
+    for(let m=0;m<12;m++){
+      const ms=Store.monthlyStats(y,m);
+      const incPct=maxVal>0?(ms.income/maxVal*100):0;
+      const expPct=maxVal>0?(ms.expense/maxVal*100):0;
+      const hasData=ms.count>0;
+      html+='<div class="year-month-card" data-month="'+m+'"><div class="year-month-header"><span class="year-month-name">'+MONTHS[m]+'</span><span class="year-month-net" style="color:'+(ms.net>=0?'var(--income)':'var(--expense)')+'">'+(hasData?fmtCurrencyShort(ms.net):'—')+'</span></div>'+
+        (hasData?'<div class="year-bars"><div class="year-bar income-bar" style="width:'+incPct+'%"></div><div class="year-bar expense-bar" style="width:'+expPct+'%"></div></div><div class="year-month-detail"><span>收 '+fmtCurrencyShort(ms.income)+'</span><span>支 '+fmtCurrencyShort(ms.expense)+'</span></div>':'<div style="height:8px"></div><div class="year-month-detail"><span>暂无记录</span></div>')+
+      '</div>';
+    }
+    $('#content').innerHTML='<div class="content-header"><span class="content-date">年度概览</span><span style="font-size:13px;color:var(--text-tertiary)">'+stats.count+' 笔</span></div><div class="year-list">'+html+'</div>';
+    $('#content').querySelectorAll('.year-month-card').forEach(function(el){el.addEventListener('click',function(){state.currentDate=new Date(y,parseInt(el.dataset.month),1);state.view='month';UI.renderComplete();});});
+  },
+
+  renderComplete(){this.render();window.scrollTo({top:0,behavior:'smooth'})},
+
+  updateSegmented(){
+    const $bg=$('.segmented-bg');const $btns=$$('.seg-btn');
+    $btns.forEach(function(b){b.classList.remove('active')});
+    const active=$('.seg-btn[data-view="'+state.view+'"]');
+    if(active)active.classList.add('active');
+    const rect=active?active.getBoundingClientRect():null;
+    const parent=$('#segmented').getBoundingClientRect();
+    if(rect&&parent){$bg.style.left=(rect.left-parent.left)+'px';$bg.style.width=rect.width+'px'}
+  },
+
+  bindEvents(){
+    $('#navPrev').addEventListener('click',function(){UI.navigate(-1)});
+    $('#navNext').addEventListener('click',function(){UI.navigate(1)});
+    $('#headerTitle').addEventListener('click',function(){state.currentDate=new Date();UI.renderComplete()});
+    $$('.seg-btn').forEach(function(b){b.addEventListener('click',function(){state.view=b.dataset.view;UI.renderComplete()})});
+    $('#fab').addEventListener('click',function(){UI.openSheet()});
+    $('#overlay').addEventListener('click',function(){UI.closeSheet()});
+    const sheet=$('#sheet');let startY=0;
+    sheet.addEventListener('touchstart',function(e){startY=e.touches[0].clientY});
+    sheet.addEventListener('touchmove',function(e){const dy=e.touches[0].clientY-startY;if(dy>60){UI.closeSheet()}});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'&&state.sheetOpen)UI.closeSheet()});
+  },
+
+  navigate(dir){
+    const d=new Date(state.currentDate);
+    if(state.view==='day'){d.setDate(d.getDate()+dir)}
+    else if(state.view==='month'){d.setMonth(d.getMonth()+dir)}
+    else{d.setFullYear(d.getFullYear()+dir)}
+    state.currentDate=d;this.renderComplete();
+  },
+
+  openSheet(txn){
+    txn=txn||null;
+    state.editingId=txn?txn.id:null;
+    state.sheetOpen=true;
+    const isExpense=txn?txn.type==='expense':true;
+    const amount=txn?txn.amount:'';
+    const cat=txn?txn.category:(isExpense?CATEGORIES.expense[0].key:CATEGORIES.income[0].key);
+    const note=txn?(txn.note||''):'';
+    const date=txn?txn.date:fmt(state.currentDate);
+
+    $('#sheetContent').innerHTML=
+      '<div class="amount-input-wrap"><span class="amount-prefix">¥</span><input class="amount-input" id="sheetAmount" type="number" inputmode="decimal" placeholder="0.00" value="'+amount+'" step="0.01" autofocus></div>'+
+      '<div class="type-toggle" id="typeToggle"><div class="type-toggle-bg" id="typeToggleBg"></div><button class="type-btn'+(isExpense?' active-expense':'')+'" data-type="expense">支出</button><button class="type-btn'+(isExpense?'':' active-income')+'" data-type="income">收入</button></div>'+
+      '<div class="cat-label">分类</div><div class="cat-grid" id="sheetCatGrid"></div>'+
+      '<div class="form-row"><div class="form-field"><div class="form-label">日期</div><input class="form-input" type="date" id="sheetDate" value="'+date+'"></div><div class="form-field"><div class="form-label">备注</div><input class="form-input" type="text" id="sheetNote" placeholder="选填" value="'+note+'" maxlength="30"></div></div>'+
+      '<button class="save-btn" id="saveBtn">'+(txn?'保存修改':'添加记录')+'</button>'+
+      (txn?'<button style="width:100%;margin-top:10px;padding:12px;border:none;background:none;color:var(--expense);font-size:14px;cursor:pointer;font-family:var(--font)" id="deleteBtn">删除此记录</button>':'');
+
+    this.updateTypeToggle(isExpense?'expense':'income');
+    this.renderCatGrid(date,cat,isExpense?'expense':'income');
+
+    $('#overlay').classList.add('open');
+    $('#sheet').classList.add('open');
+
+    $('#typeToggle').querySelectorAll('.type-btn').forEach(function(b){b.addEventListener('click',function(){var type=b.dataset.type;UI.updateTypeToggle(type);UI.renderCatGrid($('#sheetDate').value,CATEGORIES[type][0].key,type)})});
+    $('#saveBtn').addEventListener('click',function(){UI.saveTxn()});
+    var $del=$('#deleteBtn');if($del)$del.addEventListener('click',function(){if(state.editingId){Store.delete(state.editingId);UI.closeSheet();UI.renderComplete();UI.showToast('已删除')}});
+    $('#sheetDate').addEventListener('change',function(){var type=$('#typeToggle').querySelector('.type-btn.active-expense')?'expense':'income';var curCat=$('#sheetCatGrid').querySelector('.cat-chip.selected');curCat=curCat?curCat.dataset.key:CATEGORIES[type][0].key;UI.renderCatGrid($('#sheetDate').value,curCat,type)});
+    $('#sheetAmount').focus();
+  },
+
+  updateTypeToggle(type){
+    var $bg=$('#typeToggleBg');var $btns=$('#typeToggle').querySelectorAll('.type-btn');
+    $btns.forEach(function(b){b.classList.remove('active-expense','active-income')});
+    var active=$('#typeToggle').querySelector('.type-btn[data-type="'+type+'"]');
+    if(active)active.classList.add(type==='expense'?'active-expense':'active-income');
+    var rect=active?active.getBoundingClientRect():null;
+    var parent=$('#typeToggle').getBoundingClientRect();
+    if(rect&&parent){$bg.style.left=(rect.left-parent.left)+'px';$bg.style.width=rect.width+'px'}
+  },
+
+  renderCatGrid(dateStr,selectedKey,type){
+    var cats=CATEGORIES[type];
+    var date=dateStr?parseDate(dateStr):state.currentDate;
+    var dayTxns=Store.getByDay(fmt(date));
+    var html='';
+    cats.forEach(function(c){
+      html+='<button class="cat-chip'+(c.key===selectedKey?' selected':'')+'" data-key="'+c.key+'" data-type="'+type+'"><span class="cat-emoji">'+c.emoji+'</span>'+c.name+'</button>';
+    });
+    var $grid=$('#sheetCatGrid');if($grid){$grid.innerHTML=html;
+      $grid.querySelectorAll('.cat-chip').forEach(function(chip){chip.addEventListener('click',function(){$grid.querySelectorAll('.cat-chip').forEach(function(c){c.classList.remove('selected')});chip.classList.add('selected')})})}
+  },
+
+  saveTxn(){
+    var amount=parseFloat($('#sheetAmount').value);
+    if(!amount||amount<=0){this.showToast('请输入金额');$('#sheetAmount').focus();return}
+    var typeEl=$('#typeToggle').querySelector('.active-expense')||$('#typeToggle').querySelector('.active-income');
+    var type=typeEl?typeEl.dataset.type:'expense';
+    var catEl=$('#sheetCatGrid').querySelector('.cat-chip.selected');
+    var category=catEl?catEl.dataset.key:CATEGORIES[type][0].key;
+    var date=$('#sheetDate').value||fmt(state.currentDate);
+    var note=$('#sheetNote').value.trim();
+
+    if(state.editingId){
+      Store.update(state.editingId,{type:type,amount:amount,category:category,date:date,note:note});
+    }else{
+      Store.add({id:genId(),type:type,amount:amount,category:category,date:date,note:note,createdAt:Date.now()});
+    }
+    this.closeSheet();
+    if(date!==fmt(state.currentDate)&&state.view==='day'){state.currentDate=parseDate(date)}
+    this.renderComplete();
+    this.showToast(state.editingId?'已更新':'已添加');
+  },
+
+  editTxn(id){
+    var txn=state.transactions.find(function(t){return t.id===id});
+    if(txn)this.openSheet(txn);
+  },
+
+  deleteTxn(id){
+    Store.delete(id);
+    this.renderComplete();
+    this.showToast('已删除');
+  },
+
+  closeSheet(){
+    state.sheetOpen=false;state.editingId=null;
+    $('#overlay').classList.remove('open');
+    $('#sheet').classList.remove('open');
+  },
+
+  showToast(msg){
+    var $t=$('#toast');$t.textContent=msg;$t.classList.add('show');
+    clearTimeout($t._timeout);$t._timeout=setTimeout(function(){$t.classList.remove('show')},1800);
+  }
+};
+
+// ── Service Worker ──
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(function(){})
+}
+
+// ── Boot ──
+UI.init();
+
+// ── Handle back gesture / hardware back ──
+window.addEventListener('popstate',function(e){if(state.sheetOpen){e.preventDefault();UI.closeSheet();history.pushState(null,'')}});
+</script>
+</body>
+</html>
